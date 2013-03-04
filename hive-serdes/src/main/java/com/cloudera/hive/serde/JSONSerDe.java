@@ -33,6 +33,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.MapObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
@@ -132,7 +133,9 @@ public class JSONSerDe implements SerDe {
     for (String fieldName : rowTypeInfo.getAllStructFieldNames()) {
       try {
         TypeInfo fieldTypeInfo = rowTypeInfo.getStructFieldTypeInfo(fieldName);
-        value = parseField(root.get(fieldName), fieldTypeInfo);
+
+        Object field = root.get(fieldName);
+        value = parseField(field, fieldTypeInfo);
       } catch (Exception e) {
         value = null;
       }
@@ -149,6 +152,11 @@ public class JSONSerDe implements SerDe {
    * @return - The parsed value of the field
    */
   private Object parseField(Object field, TypeInfo fieldTypeInfo) {
+
+    if (field instanceof Integer && fieldTypeInfo.getTypeName().equals("double")) {
+        field = new Double(((Integer)field).doubleValue());
+    }
+
     switch (fieldTypeInfo.getCategory()) {
     case PRIMITIVE:
       // Jackson will return the right thing in this case, so just return
@@ -284,6 +292,11 @@ public class JSONSerDe implements SerDe {
     case MAP:
       return deparseMap(obj, (MapObjectInspector)oi);
     case PRIMITIVE:
+
+      //if (obj instanceof Integer && ((PrimitiveObjectInspector)oi).getPrimitiveCategory() == PrimitiveCategory.DOUBLE) {
+      //  obj = new Double(((Integer)obj).doubleValue()); 
+      //}
+
       return deparsePrimitive(obj, (PrimitiveObjectInspector)oi);
     case STRUCT:
       return deparseStruct(obj, (StructObjectInspector)oi, false);
